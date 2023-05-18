@@ -87,18 +87,30 @@ func findValidationAsset(rel *github.RepositoryRelease, validationName string) (
 	return nil, false
 }
 
+// AssetGoOSAliases are the runtime.GOOS aliases that assets may be listed under.
+// For example, an asset may be 'darwin_arm64.zip' or 'macos_arm64.zip'.
+// By default this map is empty.
+var AssetGoOSAliases = map[string][]string{}
+
+// AssetExtensions are the extensions we use to look for release binaries.
+var AssetExtensions = []string{".zip", ".tar.gz", ".tgz", ".gzip", ".gz", ".tar.xz", ".xz", ""}
+
 func findReleaseAndAsset(rels []*github.RepositoryRelease,
 	targetVersion string,
 	filters []*regexp.Regexp) (*github.RepositoryRelease, *github.ReleaseAsset, semver.Version, bool) {
 	// Generate candidates
 	suffixes := make([]string, 0, 2*7*2)
 	for _, sep := range []rune{'_', '-'} {
-		for _, ext := range []string{".zip", ".tar.gz", ".tgz", ".gzip", ".gz", ".tar.xz", ".xz", ""} {
-			suffix := fmt.Sprintf("%s%c%s%s", runtime.GOOS, sep, runtime.GOARCH, ext)
-			suffixes = append(suffixes, suffix)
-			if runtime.GOOS == "windows" {
-				suffix = fmt.Sprintf("%s%c%s.exe%s", runtime.GOOS, sep, runtime.GOARCH, ext)
+		for _, ext := range AssetExtensions {
+			osAliases := []string{runtime.GOOS}
+			osAliases = append(osAliases, AssetGoOSAliases[runtime.GOOS]...)
+			for _, goos := range osAliases {
+				suffix := fmt.Sprintf("%s%c%s%s", goos, sep, runtime.GOARCH, ext)
 				suffixes = append(suffixes, suffix)
+				if goos == "windows" {
+					suffix = fmt.Sprintf("%s%c%s.exe%s", goos, sep, runtime.GOARCH, ext)
+					suffixes = append(suffixes, suffix)
+				}
 			}
 		}
 	}
